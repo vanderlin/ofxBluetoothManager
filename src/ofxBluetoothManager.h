@@ -15,6 +15,7 @@ public:
     string name;
     string address;
     bool isConnected;
+    ofxBluetoothDevice();
     ofxBluetoothDevice(string n, string addr);
     int getRSSI();
     int getRawRSSI();

@@ -137,6 +137,10 @@ ofxBluetoothManager::~ofxBluetoothManager() {
 }
 
 //--------------------------------------------------------------
+ofxBluetoothDevice::ofxBluetoothDevice() {
+    name = address = "";
+    isConnected=false;
+}
 ofxBluetoothDevice::ofxBluetoothDevice(string n, string addr) {
     name = n; address = addr;
     isConnected=false;
@@ -180,13 +184,51 @@ vector <ofxBluetoothDevice> ofxBluetoothManager::listPairedDevices() {
     vector<ofxBluetoothDevice>connectedDevices;
 #ifdef TARGET_OSX
         NSArray * devices = [IOBluetoothDevice pairedDevices];
-        IOBluetoothDevice * device;
-        NSEnumerator * e = [devices objectEnumerator];
-        while (device = [e nextObject]) {
-            string n = [[device name] UTF8String];
-            string a = [[device addressString] UTF8String];
-            connectedDevices.push_back(ofxBluetoothDevice(n, a));
+        if(devices) {
+            IOBluetoothDevice * device;
+            NSEnumerator * e = [devices objectEnumerator];
+            while (device = [e nextObject]) {
+                if(device) {
+                    string n = [device name]==nil?"":[[device name] UTF8String];
+                    string a = [device addressString]==nil?"":[[device addressString] UTF8String];
+                    connectedDevices.push_back(ofxBluetoothDevice(n, a));
+                }
+            }
         }
+#endif
+#ifdef TARGET_WIN32
+    /* This is a WIP */
+    HBLUETOOTH_DEVICE_FIND founded_device;
+    
+    BLUETOOTH_DEVICE_INFO device_info;
+    device_info.dwSize = sizeof(device_info);
+    
+    BLUETOOTH_DEVICE_SEARCH_PARAMS search_criteria;
+    search_criteria.dwSize = sizeof(BLUETOOTH_DEVICE_SEARCH_PARAMS);
+    search_criteria.fReturnAuthenticated = TRUE;
+    search_criteria.fReturnRemembered = FALSE;
+    search_criteria.fReturnConnected = FALSE;
+    search_criteria.fReturnUnknown = FALSE;
+    search_criteria.fIssueInquiry = FALSE;
+    search_criteria.cTimeoutMultiplier = 0;
+    
+    founded_device = BluetoothFindFirstDevice(&search_criteria, &device_info);
+    
+    if (founded_device == NULL) {
+        printf(TEXT("Error: \n%s\n"), getErrorMessage(WSAGetLastError(), error));
+        //return -1;
+    }
+    
+    do {
+        string n = device_info.szName;
+        string a = device_info.Address;
+        connectedDevices.push_back(ofxBluetoothDevice(n, a));
+        printf("founded device: %s\n", device_info.szName);
+        
+    } while (BluetoothFindNextDevice(founded_device, &device_info));
+#endif
+
+#ifdef TARGET_LINUX
 #endif
     return connectedDevices;
 }
@@ -199,11 +241,13 @@ vector <ofxBluetoothDevice> ofxBluetoothManager::getConnectedDevices() {
     IOBluetoothDevice * device;
     NSEnumerator * e = [devices objectEnumerator];
     while (device = [e nextObject]) {
-        if([device isConnected]) {
-            string n = [[device name] UTF8String];
-            string a = [[device addressString] UTF8String];
-            connectedDevices.push_back(ofxBluetoothDevice(n, a));
-            connectedDevices.back().isConnected = [device isConnected];
+        if(device) {
+            if([device isConnected]) {
+                string n = [device name]==nil?"":[[device name] UTF8String];
+                string a = [device addressString]==nil?"":[[device addressString] UTF8String];
+                connectedDevices.push_back(ofxBluetoothDevice(n, a));
+                connectedDevices.back().isConnected = [device isConnected];
+            }
         }
     }
 #endif
